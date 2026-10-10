@@ -11,7 +11,7 @@ from urllib.parse import urlsplit
 import requests
 from requests.cookies import RequestsCookieJar
 
-from .errors import AuthError, ProfileResolutionError, WeiboAPIError
+from .errors import AuthError, OperationCancelled, ProfileResolutionError, WeiboAPIError
 from .models import PostImage
 from .parser import BEIJING_TZ, extract_post_images, extract_timeline_mblogs, parse_created_at
 
@@ -30,6 +30,11 @@ _UID_PATTERNS = (
     re.compile(r"['\"]uid['\"]\s*:\s*['\"]?(?P<uid>\d{5,})"),
     re.compile(r"['\"]user_id['\"]\s*:\s*['\"]?(?P<uid>\d{5,})"),
 )
+
+
+def _raise_if_cancelled(cancel_event: Any | None) -> None:
+    if cancel_event is not None and cancel_event.is_set():
+        raise OperationCancelled("任务已取消")
 
 
 class WeiboClient:
@@ -133,13 +138,16 @@ class WeiboClient:
         end: datetime,
         *,
         max_pages: int = 5000,
+        cancel_event: Any | None = None,
     ) -> Iterator[PostImage]:
         start = start.astimezone(BEIJING_TZ)
         end = end.astimezone(BEIJING_TZ)
         seen_post_ids: set[str] = set()
         previous_page_ids: tuple[str, ...] | None = None
 
+        _raise_if_cancelled(cancel_event)
         for page in range(1, max_pages + 1):
+            _raise_if_cancelled(cancel_event)
             payload = self.fetch_timeline_page(uid, page)
             mblogs = extract_timeline_mblogs(payload)
             if not mblogs:
@@ -155,6 +163,7 @@ class WeiboClient:
 
             non_pinned_dates: list[datetime] = []
             for mblog in mblogs:
+                _raise_if_cancelled(cancel_event)
                 post_id_value = mblog.get("idstr") or mblog.get("id")
                 if not post_id_value:
                     continue

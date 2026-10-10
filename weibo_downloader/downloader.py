@@ -13,7 +13,7 @@ from typing import Any, Protocol
 import requests
 from PIL import Image, UnidentifiedImageError
 
-from .errors import AuthError, DownloadError
+from .errors import AuthError, DownloadError, OperationCancelled
 from .models import PostImage, state_key
 from .parser import BEIJING_TZ
 from .state import DownloadState, append_failure
@@ -30,6 +30,11 @@ _PILLOW_EXTENSIONS = {
     "WEBP": ".webp",
     "GIF": ".gif",
 }
+
+
+def _raise_if_cancelled(cancel_event: Any | None) -> None:
+    if cancel_event is not None and cancel_event.is_set():
+        raise OperationCancelled("任务已取消")
 
 
 class ImageClient(Protocol):
@@ -69,7 +74,14 @@ class WeiboImageDownloader:
         self.state = state
         self.image_delay = max(0.0, image_delay)
 
-    def download_all(self, uid: str, images: list[PostImage]) -> DownloadStats:
+    def download_all(
+        self,
+        uid: str,
+        images: list[PostImage],
+        *,
+        cancel_event: Any | None = None,
+    ) -> DownloadStats:
+        _raise_if_cancelled(cancel_event)
         self.output_dir.mkdir(parents=True, exist_ok=True)
         stats = DownloadStats()
         next_sequences: dict[str, int] = {}
@@ -78,6 +90,7 @@ class WeiboImageDownloader:
             images,
             key=lambda item: (item.published_at.astimezone(BEIJING_TZ), item.post_id, item.image_index),
         ):
+            _raise_if_cancelled(cancel_event)
             key = state_key(uid, image.post_id, image.image_index)
             existing = self.state.get(key)
             if existing:

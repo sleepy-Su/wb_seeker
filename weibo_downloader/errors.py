@@ -6,6 +6,10 @@ class AuthError(WeiboDownloaderError):
     """Raised when Weibo rejects the supplied login credentials."""
 
 
+class OperationCancelled(WeiboDownloaderError):
+    """Raised when the user cancels an active download."""
+
+
 class CookieError(WeiboDownloaderError):
     """Raised when a cookie file cannot be parsed."""
 

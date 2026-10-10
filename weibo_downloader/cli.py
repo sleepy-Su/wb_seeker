@@ -4,10 +4,11 @@ import logging
 from datetime import date, datetime, time
 from pathlib import Path
 
+from .errors import WeiboDownloaderError
 from .client import WeiboClient
 from .cookies import load_cookie_file
 from .downloader import WeiboImageDownloader
-from .errors import WeiboDownloaderError
+from .paths import default_download_dir
 from .parser import BEIJING_TZ
 from .state import DownloadState
 
@@ -93,5 +94,6 @@ def _prompt_cookie_path() -> Path:
 
 
 def _prompt_output_dir() -> Path:
-    value = input("下载目录 [downloads]: ").strip().strip('"').strip("'")
-    return Path(value).expanduser() if value else Path("downloads")
+    default = default_download_dir()
+    value = input(f"下载目录 [{default}]: ").strip().strip('"').strip("'")
+    return Path(value).expanduser() if value else default

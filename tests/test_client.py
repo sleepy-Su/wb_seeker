@@ -7,7 +7,7 @@ import requests
 import pytest
 from weibo_downloader.client import WeiboClient
 from weibo_downloader.parser import BEIJING_TZ
-from weibo_downloader.errors import WeiboAPIError
+from weibo_downloader.errors import OperationCancelled, WeiboAPIError
 
 
 class StubTimelineClient(WeiboClient):
@@ -33,6 +33,22 @@ def _mblog(post_id: str, created_at: str, *, pinned: bool = False) -> dict[str, 
         },
         "pics": [{"pid": f"p{post_id}"}],
     }
+
+
+class AlreadyCancelled:
+    def is_set(self) -> bool:
+        return True
+
+
+def test_iter_timeline_images_can_be_cancelled_before_fetching() -> None:
+    client = StubTimelineClient([])
+    start = datetime(2026, 10, 9, 0, 0, tzinfo=BEIJING_TZ)
+    end = datetime.combine(start.date(), time.max, tzinfo=BEIJING_TZ)
+
+    with pytest.raises(OperationCancelled):
+        list(client.iter_timeline_images("123", start, end, cancel_event=AlreadyCancelled()))
+
+    assert client.requested_pages == []
 
 
 def test_iter_timeline_images_skips_pinned_old_post_and_stops_after_old_page() -> None:

@@ -1,9 +1,10 @@
 # 微博博主正文原图下载器
 
-一个 Python 3.11+ 交互式命令行程序，用于按日期区间下载微博博主原创正文中的图片。程序使用微博登录 Cookie 访问网页版时间线接口，支持 JPG、PNG、WebP 和 GIF。
+一个 Python 3.11+ 图形界面程序，用于按日期区间下载微博博主原创正文中的图片。程序使用微博登录 Cookie 访问网页版时间线接口，支持 JPG、PNG、WebP 和 GIF，并保留命令行模式。
 
 ## 功能
 
+- 双击或使用 `python main.py` 启动图形界面，可填写主页、日期、Cookie 和下载目录。
 - 支持主页 URL 或纯数字 UID，包含 `https://weibo.com/u/<uid>`、`weibo.com/<uid>` 和移动端主页链接。
 - 只处理原创微博正文，跳过转发微博、头像、背景图、视频和视频封面。
 - 优先选择原图地址，原图不可用时保存最大可用版本并写入警告记录。
@@ -37,6 +38,14 @@ Cookie 文件属于敏感凭据，不要提交到 Git、上传到网盘或发送
 python main.py
 ```
 
+默认启动图形界面。需要命令行模式时使用：
+
+```powershell
+python main.py --cli
+```
+
+命令行模式按提示依次输入：
+
 按提示依次输入：
 
 ```text
@@ -47,7 +56,7 @@ Cookie 文件路径: C:\path\to\cookies.txt
 下载目录 [downloads]:
 ```
 
-图片默认保存到 `downloads/` 下的平铺目录中。`.weibo_photo_state.json` 记录已成功下载的微博图片及降级来源，`.weibo_photo_failed.jsonl` 记录最终失败的图片。
+图片默认保存到程序目录下的 `downloads/` 中，不再依赖启动时的当前工作目录；图形界面也可以选择其他目录。`.weibo_photo_state.json` 记录已成功下载的微博图片及降级来源，`.weibo_photo_failed.jsonl` 记录最终失败的图片。
 
 ## 原图与降级规则
 

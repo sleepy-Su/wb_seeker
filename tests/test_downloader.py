@@ -5,10 +5,12 @@ from datetime import datetime
 from io import BytesIO
 from pathlib import Path
 
+import pytest
 import requests
 from PIL import Image
 
 from weibo_downloader.downloader import WeiboImageDownloader, next_available_sequence
+from weibo_downloader.errors import OperationCancelled
 from weibo_downloader.models import ImageCandidate, PostImage
 from weibo_downloader.parser import BEIJING_TZ
 from weibo_downloader.state import DownloadState, FAILED_FILENAME
@@ -160,6 +162,19 @@ def test_all_candidates_failing_writes_jsonl_and_continues(tmp_path: Path) -> No
     assert len(failure_lines) == 1
     record = json.loads(failure_lines[0])
     assert record["post_id"] == "500"
+
+
+class AlreadyCancelled:
+    def is_set(self) -> bool:
+        return True
+
+
+def test_download_all_can_be_cancelled_before_start(tmp_path: Path) -> None:
+    state = DownloadState.load(tmp_path)
+    downloader = WeiboImageDownloader(FakeImageClient({}), tmp_path, state, image_delay=0)
+
+    with pytest.raises(OperationCancelled):
+        downloader.download_all("123", [], cancel_event=AlreadyCancelled())
 
 
 def test_next_available_sequence_reads_existing_flat_files(tmp_path: Path) -> None:
