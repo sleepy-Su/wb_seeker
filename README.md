@@ -81,3 +81,11 @@ python -m pytest
 
 本项目依赖微博网页版当前非公开接口，微博改版后解析逻辑可能需要更新。请确保自己拥有访问和下载相关内容的合法权限，并遵守微博服务条款、版权要求和适用法律；不要用于绕过访问限制或高频抓取。
 旧版本如果已经把 `/orj1080/` 等非原图版本记录为完成，程序会先把旧文件移动到 `.weibo_lowres_backup/`，再用真正的原图替换原文件名。
+
+仓库提供一个辅助脚本，可以把 Edge/Chrome 请求头中的 Cookie 值转换成程序需要的 Netscape 格式：
+
+```powershell
+python edge_cookie_to_txt.py
+```
+
+打开 `weibo.com` 并登录后，按 `F12`，在 Network 中选择一个微博请求，复制 Request Headers 中 `cookie:` 后面的完整值，粘贴到脚本并连续按两次回车。脚本会在项目目录生成 `cookies.txt`。
