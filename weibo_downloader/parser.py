@@ -19,6 +19,11 @@ _IMAGE_SIZE_SEGMENTS = {
     "mw690",
     "mw1024",
     "mw2000",
+    "orj720",
+    "orj960",
+    "orj1080",
+    "orj1440",
+    "orj2048",
     "orj360",
     "orj480",
     "wap180",
@@ -108,6 +113,23 @@ def normalize_image_url(value: str) -> str | None:
     return urlunsplit((parsed.scheme, parsed.netloc, path, parsed.query, parsed.fragment))
 
 
+def is_original_image_url(value: str) -> bool:
+    text = value.strip()
+    if not text:
+        return False
+    if text.startswith("//"):
+        text = f"https:{text}"
+    elif text.startswith("/"):
+        text = urljoin("https://weibo.com", text)
+
+    parsed = urlsplit(text)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        return False
+
+    segments = parsed.path.lstrip("/").split("/")
+    return any(segment.lower() in {"large", "original"} for segment in segments[:3])
+
+
 def _value_from_node(node: Any) -> tuple[str | None, int | None, int | None]:
     if isinstance(node, str):
         return node, None, None
@@ -132,23 +154,30 @@ def extract_candidates(info: Mapping[str, Any]) -> tuple[ImageCandidate, ...]:
     candidates: list[ImageCandidate] = []
     seen: set[str] = set()
 
+    # Weibo's "original" field can point to orj1080, while "largest" is the
+    # full-size image exposed by the web viewer's original-image action.
     for quality, key in (
-        ("original", "original"),
         ("largest", "largest"),
+        ("original", "original"),
         ("large", "large"),
+        ("mw2000", "mw2000"),
     ):
         raw_url, width, height = _value_from_node(info.get(key))
         url = normalize_image_url(raw_url) if raw_url else None
         if url and url not in seen:
-            candidates.append(ImageCandidate(url=url, quality=quality, width=width, height=height))
+            actual_quality = "original" if is_original_image_url(url) else quality
+            candidates.append(
+                ImageCandidate(url=url, quality=actual_quality, width=width, height=height)
+            )
             seen.add(url)
 
     for key in ("url", "bmiddle", "thumbnail", "small"):
         raw_url, width, height = _value_from_node(info.get(key))
         url = normalize_image_url(raw_url) if raw_url else None
         if url and url not in seen:
+            actual_quality = "original" if is_original_image_url(url) else "large-normalized"
             candidates.append(
-                ImageCandidate(url=url, quality="large-normalized", width=width, height=height)
+                ImageCandidate(url=url, quality=actual_quality, width=width, height=height)
             )
             seen.add(url)
             break

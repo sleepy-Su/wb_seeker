@@ -62,9 +62,9 @@ Cookie 文件路径: C:\path\to\cookies.txt
 
 程序按以下顺序尝试图片地址：
 
-1. `original.url`
-2. `largest.url`
-3. `large.url`
+1. `largest.url`，网页版“下载原图”对应的完整图片
+2. 将 `orj1080`、`orj960`、`mw2000` 等路径转换为 `/large/`
+3. `original.url` 和 `large.url`
 4. 将 `thumbnail`、`bmiddle`、`mw690`、`orj360` 等已知缩略图路径转换为 `/large/`
 
 只要使用的不是 `original` 地址，状态记录中的 `fallback` 就会标记为 `true`，任务结束时也会显示降级数量。图片不会经过重新编码，保存的是服务器返回的原始字节。
@@ -80,3 +80,4 @@ python -m pytest
 ## 说明
 
 本项目依赖微博网页版当前非公开接口，微博改版后解析逻辑可能需要更新。请确保自己拥有访问和下载相关内容的合法权限，并遵守微博服务条款、版权要求和适用法律；不要用于绕过访问限制或高频抓取。
+旧版本如果已经把 `/orj1080/` 等非原图版本记录为完成，程序会先把旧文件移动到 `.weibo_lowres_backup/`，再用真正的原图替换原文件名。

@@ -5,6 +5,7 @@ import pytest
 from weibo_downloader.parser import (
     BEIJING_TZ,
     CreatedAtError,
+    is_original_image_url,
     extract_candidates,
     extract_post_images,
     normalize_image_url,
@@ -45,6 +46,7 @@ def test_parse_created_at_rejects_unknown_text() -> None:
 @pytest.mark.parametrize(
     ("value", "expected"),
     [
+        ("https://wx1.sinaimg.cn/orj1080/photo.jpg", "https://wx1.sinaimg.cn/large/photo.jpg"),
         ("//wx1.sinaimg.cn/orj360/photo.jpg", "https://wx1.sinaimg.cn/large/photo.jpg"),
         ("https://wx1.sinaimg.cn/bmiddle/photo.jpg", "https://wx1.sinaimg.cn/large/photo.jpg"),
         ("https://wx1.sinaimg.cn/large/photo.jpg", "https://wx1.sinaimg.cn/large/photo.jpg"),
@@ -54,23 +56,29 @@ def test_normalize_image_url(value: str, expected: str) -> None:
     assert normalize_image_url(value) == expected
 
 
+def test_is_original_image_url_recognizes_true_original_paths() -> None:
+    assert is_original_image_url("https://wx1.sinaimg.cn/large/photo.jpg")
+    assert is_original_image_url("https://wx1.sinaimg.cn/original/photo.jpg")
+    assert not is_original_image_url("https://wx1.sinaimg.cn/orj1080/photo.jpg")
+
+
 def test_extract_candidates_prefers_original_source() -> None:
     candidates = extract_candidates(
         {
-            "original": {"url": "https://wx1.sinaimg.cn/large/photo.jpg"},
+            "original": {"url": "https://wx1.sinaimg.cn/orj1080/photo.jpg"},
             "largest": {"url": "https://wx2.sinaimg.cn/large/photo.jpg"},
-            "large": {"url": "https://wx3.sinaimg.cn/large/photo.jpg"},
+            "large": {"url": "https://wx3.sinaimg.cn/orj960/photo.jpg"},
             "url": "https://wx4.sinaimg.cn/orj360/photo.jpg",
         }
     )
 
     assert [candidate.quality for candidate in candidates] == [
         "original",
-        "largest",
-        "large",
-        "large-normalized",
+        "original",
+        "original",
+        "original",
     ]
-    assert candidates[0].url == "https://wx1.sinaimg.cn/large/photo.jpg"
+    assert candidates[0].url == "https://wx2.sinaimg.cn/large/photo.jpg"
 
 
 def test_extract_post_images_preserves_picture_order() -> None:

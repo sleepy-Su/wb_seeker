@@ -100,6 +100,43 @@ def test_interrupted_original_stream_falls_back_to_next_candidate(tmp_path: Path
     assert (tmp_path / "2026-10-09_001.png").is_file()
 
 
+def test_previous_orj1080_download_is_archived_and_replaced_with_original(tmp_path: Path) -> None:
+    filename = "2026-10-09_001.png"
+    existing_path = tmp_path / filename
+    existing_path.write_bytes(_png_bytes())
+    state = DownloadState.load(tmp_path)
+    state.mark_completed(
+        "123:501:1",
+        {
+            "filename": filename,
+            "post_id": "501",
+            "image_index": 1,
+            "downloaded_url": "https://wx1.sinaimg.cn/orj1080/photo.png",
+            "quality": "original",
+        },
+    )
+    original_url = "https://wx1.sinaimg.cn/large/photo.png"
+    image = PostImage(
+        post_id="501",
+        published_at=datetime(2026, 10, 9, 12, 0, tzinfo=BEIJING_TZ),
+        image_index=1,
+        candidates=(ImageCandidate(original_url, "original"),),
+    )
+    client = FakeImageClient({original_url: FakeResponse(200, _png_bytes())})
+
+    stats = WeiboImageDownloader(client, tmp_path, state, image_delay=0).download_all(
+        "123", [image]
+    )
+
+    assert stats.downloaded == 1
+    assert stats.skipped == 0
+    assert existing_path.is_file()
+    assert (tmp_path / ".weibo_lowres_backup" / filename).is_file()
+    record = state.get("123:501:1")
+    assert record is not None
+    assert record["downloaded_url"] == original_url
+
+
 def test_repeated_run_skips_existing_file_but_missing_file_is_redownloaded(tmp_path: Path) -> None:
     url = "https://wx1.sinaimg.cn/large/photo.png"
     image = _post_image("501", url)

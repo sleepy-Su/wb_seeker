@@ -15,7 +15,7 @@ from PIL import Image, UnidentifiedImageError
 
 from .errors import AuthError, DownloadError, OperationCancelled
 from .models import PostImage, state_key
-from .parser import BEIJING_TZ
+from .parser import BEIJING_TZ, is_original_image_url
 from .state import DownloadState, append_failure
 
 logger = logging.getLogger(__name__)
@@ -97,9 +97,15 @@ class WeiboImageDownloader:
                 filename = existing.get("filename")
                 existing_path = self.output_dir / filename if isinstance(filename, str) else None
                 if existing_path and existing_path.is_file():
-                    stats.skipped += 1
-                    continue
-                self.state.remove(key)
+                    downloaded_url = existing.get("downloaded_url")
+                    if isinstance(downloaded_url, str) and is_original_image_url(downloaded_url):
+                        stats.skipped += 1
+                        continue
+                    archived_path = _archive_low_resolution_file(existing_path)
+                    logger.warning("Archived non-original image %s", archived_path)
+                    self.state.remove(key)
+                else:
+                    self.state.remove(key)
 
             date_text = image.published_at.astimezone(BEIJING_TZ).date().isoformat()
             sequence = next_sequences.setdefault(
@@ -230,6 +236,16 @@ class WeiboImageDownloader:
 
         detail = "; ".join(errors) if errors else "no image candidates"
         raise DownloadError(detail)
+
+
+def _archive_low_resolution_file(path: Path) -> Path:
+    backup_dir = path.parent / ".weibo_lowres_backup"
+    backup_dir.mkdir(parents=True, exist_ok=True)
+    target = backup_dir / path.name
+    if target.exists():
+        target = backup_dir / f"{path.stem}_{uuid.uuid4().hex[:8]}{path.suffix}"
+    os.replace(path, target)
+    return target
 
 
 def next_available_sequence(output_dir: Path, date_text: str) -> int:
